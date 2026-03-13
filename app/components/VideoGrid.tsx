@@ -68,8 +68,9 @@ export default function VideoGrid({ videos, channelTitle, onLoadMore, isLoadingM
 	return (
 		<div className='w-full'>
 			{channelTitle && (
-				<h2 className='mb-6 text-xl font-bold text-zinc-900 dark:text-zinc-100'>
-					Latest from <span className='text-red-600'>{channelTitle}</span>
+				<h2 className='mb-6 flex items-center gap-2 text-lg font-semibold text-zinc-900 dark:text-zinc-100'>
+					<span className='text-zinc-200 dark:text-zinc-200'>Latest from</span>
+					<span className='text-red-600 font-semibold'>@{channelTitle}</span>
 				</h2>
 			)}
 			<div className='grid gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'>
