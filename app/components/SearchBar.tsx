@@ -64,7 +64,7 @@ export default function SearchBar({ value, onChange, onSearch, isLoading }: Sear
 						placeholder:text-zinc-400
 						focus:border-red-500
 						focus:ring-4 focus:ring-red-500/10
-						dark:border-zinc-700
+						dark:border-zinc-800
 						dark:bg-zinc-900
 						dark:text-zinc-100
 						dark:placeholder:text-zinc-500

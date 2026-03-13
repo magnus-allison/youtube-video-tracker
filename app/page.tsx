@@ -137,8 +137,8 @@ export default function Home() {
 								disabled={isLoading}
 								className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors disabled:opacity-50 ${
 									searchQuery.trim() === handle.trim()
-										? 'border-blue-300 bg-white text-blue-700 hover:border-blue-400 dark:border-blue-700 dark:bg-zinc-900 dark:text-blue-300 dark:hover:border-blue-500'
-										: 'border-zinc-200 bg-white text-zinc-700 hover:border-red-300 hover:bg-red-50 hover:text-red-700 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:border-red-800 dark:hover:bg-red-950 dark:hover:text-red-400'
+										? 'border-red-300 bg-red-50 text-red-700 hover:border-red-400 dark:border-red-800 dark:bg-red-950 dark:text-red-300 dark:hover:border-red-700'
+										: 'border-zinc-200 bg-white text-zinc-700 hover:border-red-300 hover:bg-red-50 hover:text-red-700 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:border-red-800 dark:hover:bg-red-950 dark:hover:text-red-400'
 								}`}
 							>
 								{normalizeHandleForDisplay(handle)}
@@ -151,7 +151,7 @@ export default function Home() {
 			{/* Content */}
 			<main className='mx-auto max-w-6xl px-6 py-8'>
 				{error && (
-					<div className='mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/50 dark:text-red-400'>
+					<div className='mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/50 dark:text-red-400'>
 						{error}
 					</div>
 				)}

@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { getStorageItem, setStorageItem } from '../lib/storage';
+import FilterPills, { type FilterOption } from './FilterPills';
 
 const WATCHED_KEY = 'yt-tracker-watched';
 
@@ -47,6 +48,37 @@ function timeAgo(dateString: string): string {
 
 export default function VideoGrid({ videos, channelTitle, onLoadMore, isLoadingMore }: VideoGridProps) {
 	const [watchedIds, setWatchedIds] = useState<Set<string>>(() => getWatchedIds());
+	const [filter, setFilter] = useState<FilterOption>('all');
+	const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
+	const isLoadingMoreRef = useRef(!!isLoadingMore);
+	const allowAutoLoad = filter === 'all';
+
+	useEffect(() => {
+		isLoadingMoreRef.current = !!isLoadingMore;
+	}, [isLoadingMore]);
+
+	useEffect(() => {
+		if (!onLoadMore) return;
+		if (!allowAutoLoad) return;
+		if (typeof window === 'undefined') return;
+		if (!('IntersectionObserver' in window)) return;
+		const sentinel = loadMoreSentinelRef.current;
+		if (!sentinel) return;
+
+		const observer = new IntersectionObserver(
+			(entries) => {
+				const entry = entries[0];
+				if (!entry?.isIntersecting) return;
+				if (isLoadingMoreRef.current) return;
+				isLoadingMoreRef.current = true;
+				onLoadMore();
+			},
+			{ rootMargin: '300px 0px', threshold: 0.01 }
+		);
+
+		observer.observe(sentinel);
+		return () => observer.disconnect();
+	}, [onLoadMore, allowAutoLoad]);
 
 	const toggleWatched = useCallback((id: string, e: React.MouseEvent) => {
 		e.preventDefault();
@@ -65,16 +97,26 @@ export default function VideoGrid({ videos, channelTitle, onLoadMore, isLoadingM
 
 	if (videos.length === 0) return null;
 
+	const filteredVideos = videos.filter((video) => {
+		const watched = watchedIds.has(video.id);
+		if (filter === 'watched') return watched;
+		if (filter === 'unwatched') return !watched;
+		return true;
+	});
+
 	return (
 		<div className='w-full'>
 			{channelTitle && (
-				<h2 className='mb-6 flex items-center gap-2 text-lg font-semibold text-zinc-900 dark:text-zinc-100'>
-					<span className='text-zinc-200 dark:text-zinc-200'>Latest from</span>
-					<span className='text-red-600 font-semibold'>@{channelTitle}</span>
-				</h2>
+				<div className='mb-6 flex flex-wrap items-center justify-between gap-3'>
+					<h2 className='flex items-center gap-2 text-lg font-semibold text-zinc-900 dark:text-zinc-100'>
+						<span className='text-zinc-400 dark:text-zinc-500'>Latest from</span>
+						<span className='text-red-600 font-semibold'>@{channelTitle}</span>
+					</h2>
+					<FilterPills value={filter} onChange={setFilter} />
+				</div>
 			)}
 			<div className='grid gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'>
-				{videos.map((video) => {
+				{filteredVideos.map((video) => {
 					const watched = watchedIds.has(video.id);
 					return (
 						<div
@@ -138,7 +180,7 @@ export default function VideoGrid({ videos, channelTitle, onLoadMore, isLoadingM
 							<div className='px-4 pb-3'>
 								<button
 									onClick={(e) => toggleWatched(video.id, e)}
-									className={`w-full rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+									className={`w-full rounded-xl px-3 py-1.5 text-xs font-medium transition-colors ${
 										watched
 											? 'bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900/40 dark:text-green-400 dark:hover:bg-green-900/60'
 											: 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-700'
@@ -153,11 +195,12 @@ export default function VideoGrid({ videos, channelTitle, onLoadMore, isLoadingM
 			</div>
 
 			{onLoadMore && (
-				<div className='mt-8 flex justify-center'>
+				<div className='mt-8 flex flex-col items-center gap-3'>
+					<div ref={loadMoreSentinelRef} className='h-1 w-full' aria-hidden='true' />
 					<button
 						onClick={onLoadMore}
 						disabled={isLoadingMore}
-						className='inline-flex items-center gap-2 rounded-lg border border-zinc-300 bg-white px-6 py-2.5 text-sm font-medium text-zinc-700 shadow-sm transition-colors hover:bg-zinc-50 disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700'
+						className='inline-flex items-center gap-2 rounded-xl border border-zinc-200 bg-white px-6 py-2.5 text-sm font-medium text-zinc-700 shadow-sm transition-colors hover:bg-zinc-50 disabled:opacity-60 dark:border-zinc-800 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700'
 					>
 						{isLoadingMore ? (
 							<>
