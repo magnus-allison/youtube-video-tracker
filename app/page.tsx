@@ -1,9 +1,21 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import SearchBar from './components/SearchBar';
 import VideoGrid, { Video } from './components/VideoGrid';
 import { getRecentSearches, addRecentSearch } from './lib/storage';
+
+function normalizeHandleForDisplay(handle: string): string {
+	const trimmed = handle.trim();
+	if (!trimmed) return '';
+	return trimmed.startsWith('@') ? trimmed : `@${trimmed}`;
+}
+
+function normalizeHandleForUrl(handle: string): string {
+	const trimmed = handle.trim();
+	if (!trimmed) return '';
+	return trimmed.replace(/^@+/, '');
+}
 
 export default function Home() {
 	const [videos, setVideos] = useState<Video[]>([]);
@@ -14,21 +26,31 @@ export default function Home() {
 	const [continuation, setContinuation] = useState<string | null>(null);
 	const currentHandle = useRef('');
 	const [recentSearches, setRecentSearches] = useState<string[]>([]);
+	const [searchQuery, setSearchQuery] = useState('');
 
 	useEffect(() => {
 		setRecentSearches(getRecentSearches());
 	}, []);
 
-	async function handleSearch(handle: string) {
+	const handleSearch = useCallback(async (handle: string) => {
+		const displayHandle = normalizeHandleForDisplay(handle);
+		if (!displayHandle) return;
+		setSearchQuery(displayHandle);
+		if (typeof window !== 'undefined') {
+			const url = new URL(window.location.href);
+			url.searchParams.set('q', normalizeHandleForUrl(displayHandle));
+			window.history.replaceState({}, '', url.toString());
+		}
+
 		setIsLoading(true);
 		setError('');
 		setVideos([]);
 		setChannelTitle('');
 		setContinuation(null);
-		currentHandle.current = handle;
+		currentHandle.current = displayHandle;
 
 		try {
-			const res = await fetch(`/api/youtube?handle=${encodeURIComponent(handle)}`);
+			const res = await fetch(`/api/youtube?handle=${encodeURIComponent(displayHandle)}`);
 			const data = await res.json();
 
 			if (!res.ok) {
@@ -39,13 +61,36 @@ export default function Home() {
 			setChannelTitle(data.channelTitle);
 			setVideos(data.videos);
 			setContinuation(data.continuation ?? null);
-			setRecentSearches(addRecentSearch(handle));
+			setRecentSearches(addRecentSearch(displayHandle));
 		} catch {
 			setError('Failed to fetch videos. Please try again.');
 		} finally {
 			setIsLoading(false);
 		}
-	}
+	}, []);
+
+	useEffect(() => {
+		if (typeof window === 'undefined') return;
+		const applyQuery = () => {
+			const query = new URLSearchParams(window.location.search).get('q');
+			const trimmed = query?.trim();
+			if (trimmed) {
+				const displayHandle = normalizeHandleForDisplay(trimmed);
+				if (displayHandle !== currentHandle.current) {
+					setSearchQuery(displayHandle);
+					handleSearch(displayHandle);
+				}
+				return;
+			}
+			if (!trimmed && searchQuery) {
+				setSearchQuery('');
+			}
+		};
+
+		applyQuery();
+		window.addEventListener('popstate', applyQuery);
+		return () => window.removeEventListener('popstate', applyQuery);
+	}, [handleSearch, searchQuery]);
 
 	async function handleLoadMore() {
 		if (!continuation || isLoadingMore) return;
@@ -79,7 +124,12 @@ export default function Home() {
 						</svg>
 						Video Tracker
 					</h1>
-					<SearchBar onSearch={handleSearch} isLoading={isLoading} />
+					<SearchBar
+						value={searchQuery}
+						onChange={setSearchQuery}
+						onSearch={handleSearch}
+						isLoading={isLoading}
+					/>
 				</div>
 				{recentSearches.length > 0 && (
 					<div className='mx-auto flex max-w-6xl items-center gap-2 px-6 pb-3 pt-0'>
@@ -89,9 +139,13 @@ export default function Home() {
 								key={handle}
 								onClick={() => handleSearch(handle)}
 								disabled={isLoading}
-								className='rounded-full border border-zinc-200 bg-zinc-100 px-3 py-1 text-xs font-medium text-zinc-700 transition-colors hover:border-red-300 hover:bg-red-50 hover:text-red-700 disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:border-red-800 dark:hover:bg-red-950 dark:hover:text-red-400'
+								className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors disabled:opacity-50 ${
+									searchQuery.trim() === handle.trim()
+										? 'border-yellow-300 bg-yellow-100 text-yellow-800 hover:bg-yellow-200 dark:border-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-200 dark:hover:bg-yellow-900/60'
+										: 'border-zinc-200 bg-zinc-100 text-zinc-700 hover:border-red-300 hover:bg-red-50 hover:text-red-700 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:border-red-800 dark:hover:bg-red-950 dark:hover:text-red-400'
+								}`}
 							>
-								{handle}
+								{normalizeHandleForDisplay(handle)}
 							</button>
 						))}
 					</div>

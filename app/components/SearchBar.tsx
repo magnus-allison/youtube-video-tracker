@@ -1,14 +1,20 @@
 'use client';
 
-import { useState, FormEvent } from 'react';
+import { useState, useEffect, FormEvent } from 'react';
 
 interface SearchBarProps {
+	value: string;
+	onChange: (value: string) => void;
 	onSearch: (handle: string) => void;
 	isLoading: boolean;
 }
 
-export default function SearchBar({ onSearch, isLoading }: SearchBarProps) {
-	const [query, setQuery] = useState('');
+export default function SearchBar({ value, onChange, onSearch, isLoading }: SearchBarProps) {
+	const [query, setQuery] = useState(value);
+
+	useEffect(() => {
+		setQuery(value);
+	}, [value]);
 
 	function handleSubmit(e: FormEvent) {
 		e.preventDefault();
@@ -22,7 +28,13 @@ export default function SearchBar({ onSearch, isLoading }: SearchBarProps) {
 				<input
 					type='text'
 					value={query}
-					onChange={(e) => setQuery(e.target.value)}
+					onChange={(e) => {
+						const rawValue = e.target.value;
+						const nextValue =
+							rawValue && !rawValue.startsWith('@') ? `@${rawValue}` : rawValue;
+						setQuery(nextValue);
+						onChange(nextValue);
+					}}
 					placeholder='Search YouTube handle (e.g. @mkbhd)'
 					className='w-full rounded-xl border border-zinc-300 bg-white px-5 py-3.5 pr-28 text-base text-zinc-900 shadow-sm outline-none placeholder:text-zinc-400 focus:border-red-500 focus:ring-2 focus:ring-red-500/20 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:placeholder:text-zinc-500 dark:focus:border-red-500'
 				/>
