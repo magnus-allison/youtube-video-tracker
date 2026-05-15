@@ -1,29 +1,62 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { normalizeHandleForDisplay } from '../../lib/handles';
+import {
+	extractChannelTitle,
+	extractContinuationItems,
+	extractInnertubeConfig,
+	extractInitialDataBlob,
+	extractVideos,
+	extractVideosTabContents,
+	type ParsedVideo
+} from '../../lib/youtube-parser';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function extractVideos(contents: any[]) {
-	const videos = [];
-	let continuation: string | null = null;
+const YOUTUBE_PAGE_HEADERS = {
+	'User-Agent':
+		'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+	Accept: 'text/html',
+	'Accept-Language': 'en-US,en;q=0.9'
+};
 
-	for (const item of contents) {
-		const vr = item.richItemRenderer?.content?.videoRenderer;
-		if (vr?.videoId) {
-			videos.push({
-				id: vr.videoId,
-				title: vr.title?.runs?.[0]?.text ?? '',
-				// eslint-disable-next-line @typescript-eslint/no-explicit-any
-				description: vr.descriptionSnippet?.runs?.map((r: any) => r.text).join('') ?? '',
-				thumbnail: `https://i.ytimg.com/vi/${vr.videoId}/mqdefault.jpg`,
-				publishedAt: vr.publishedTimeText?.simpleText ?? ''
-			});
-		}
-		if (item.continuationItemRenderer) {
-			continuation =
-				item.continuationItemRenderer.continuationEndpoint?.continuationCommand?.token ?? null;
-		}
+const REQUEST_TIMEOUT_MS = 8000;
+const CACHE_TTL_MS = 2 * 60 * 1000;
+
+const channelCache = new Map<
+	string,
+	{ expiresAt: number; payload: { channelTitle: string; videos: ParsedVideo[]; continuation: string | null } }
+>();
+
+async function fetchWithTimeout(input: string, init?: RequestInit): Promise<Response> {
+	const controller = new AbortController();
+	const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+	try {
+		return await fetch(input, {
+			...init,
+			signal: controller.signal
+		});
+	} finally {
+		clearTimeout(timeout);
 	}
+}
 
-	return { videos, continuation };
+function getCachedChannel(handleKey: string) {
+	const cached = channelCache.get(handleKey);
+	if (!cached) return null;
+	if (cached.expiresAt < Date.now()) {
+		channelCache.delete(handleKey);
+		return null;
+	}
+	return cached.payload;
+}
+
+function setCachedChannel(
+	handleKey: string,
+	payload: { channelTitle: string; videos: ParsedVideo[]; continuation: string | null }
+) {
+	channelCache.set(handleKey, {
+		expiresAt: Date.now() + CACHE_TTL_MS,
+		payload
+	});
 }
 
 export async function GET(request: NextRequest) {
@@ -34,21 +67,50 @@ export async function GET(request: NextRequest) {
 		return NextResponse.json({ error: 'Missing handle parameter' }, { status: 400 });
 	}
 
+	const withAt = normalizeHandleForDisplay(handle);
+	const cacheKey = withAt.toLowerCase();
+
+	if (!continuationToken) {
+		const cached = getCachedChannel(cacheKey);
+		if (cached) {
+			return NextResponse.json(cached);
+		}
+	}
+
 	try {
+		const pageRes = await fetchWithTimeout(`https://www.youtube.com/${withAt}/videos`, {
+			headers: YOUTUBE_PAGE_HEADERS,
+			redirect: 'follow'
+		});
+
+		if (!pageRes.ok) {
+			return NextResponse.json({ error: 'Channel not found' }, { status: 404 });
+		}
+
+		const html = await pageRes.text();
+
 		// --- Continuation request: fetch next page via YouTube internal API ---
 		if (continuationToken) {
+			const innertubeConfig = extractInnertubeConfig(html);
+			if (!innertubeConfig) {
+				return NextResponse.json(
+					{ error: 'Could not parse YouTube client config' },
+					{ status: 500 }
+				);
+			}
+
 			const body = JSON.stringify({
 				context: {
 					client: {
 						clientName: 'WEB',
-						clientVersion: '2.20260303.00.00'
+						clientVersion: innertubeConfig.clientVersion
 					}
 				},
 				continuation: continuationToken
 			});
 
-			const contRes = await fetch(
-				'https://www.youtube.com/youtubei/v1/browse?key=AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8',
+			const contRes = await fetchWithTimeout(
+				`https://www.youtube.com/youtubei/v1/browse?key=${innertubeConfig.apiKey}`,
 				{
 					method: 'POST',
 					headers: { 'Content-Type': 'application/json' },
@@ -60,58 +122,23 @@ export async function GET(request: NextRequest) {
 				return NextResponse.json({ error: 'Failed to load more videos' }, { status: 500 });
 			}
 
-			const contData = await contRes.json();
-			const actions = contData.onResponseReceivedActions ?? [];
-
-			for (const action of actions) {
-				const items = action.appendContinuationItemsAction?.continuationItems ?? [];
-				if (items.length > 0) {
-					const { videos, continuation } = extractVideos(items);
-					return NextResponse.json({ videos, continuation });
-				}
+			const contData = (await contRes.json()) as unknown;
+			const items = extractContinuationItems(contData);
+			if (items.length > 0) {
+				const { videos, continuation } = extractVideos(items);
+				return NextResponse.json({ videos, continuation });
 			}
 
 			return NextResponse.json({ videos: [], continuation: null });
 		}
 
-		// --- Initial request: scrape the channel page ---
-		const withAt = handle.startsWith('@') ? handle : `@${handle}`;
-
-		const pageRes = await fetch(`https://www.youtube.com/${withAt}/videos`, {
-			headers: {
-				'User-Agent':
-					'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-				Accept: 'text/html',
-				'Accept-Language': 'en-US,en;q=0.9'
-			},
-			redirect: 'follow'
-		});
-
-		if (!pageRes.ok) {
-			return NextResponse.json({ error: 'Channel not found' }, { status: 404 });
-		}
-
-		const html = await pageRes.text();
-
-		// Extract ytInitialData JSON blob from the page
-		const dataMatch = html.match(/var ytInitialData\s*=\s*({[\s\S]*?});\s*<\/script>/);
-		if (!dataMatch) {
+		const data = extractInitialDataBlob(html);
+		if (!data) {
 			return NextResponse.json({ error: 'Could not parse channel data' }, { status: 404 });
 		}
 
-		const data = JSON.parse(dataMatch[1]);
-
-		// Extract channel title from metadata
-		const channelTitle =
-			data.metadata?.channelMetadataRenderer?.title ??
-			data.microformat?.microformatDataRenderer?.title ??
-			withAt;
-
-		// Find the Videos tab content
-		const tabs = data.contents?.twoColumnBrowseResultsRenderer?.tabs ?? [];
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		const videosTab = tabs.find((t: any) => t.tabRenderer?.title === 'Videos' || t.tabRenderer?.selected);
-		const contents = videosTab?.tabRenderer?.content?.richGridRenderer?.contents ?? [];
+		const channelTitle = extractChannelTitle(data, withAt);
+		const contents = extractVideosTabContents(data);
 
 		const { videos, continuation } = extractVideos(contents);
 
@@ -119,8 +146,13 @@ export async function GET(request: NextRequest) {
 			return NextResponse.json({ error: 'No videos found' }, { status: 404 });
 		}
 
-		return NextResponse.json({ channelTitle, videos, continuation });
+		const payload = { channelTitle, videos, continuation };
+		setCachedChannel(cacheKey, payload);
+		return NextResponse.json(payload);
 	} catch (err) {
+		if (err instanceof Error && err.name === 'AbortError') {
+			return NextResponse.json({ error: 'YouTube request timed out' }, { status: 504 });
+		}
 		console.error('YouTube fetch error:', err);
 		return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
 	}

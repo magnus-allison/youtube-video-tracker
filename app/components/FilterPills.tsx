@@ -26,8 +26,8 @@ export default function FilterPills({ value, onChange }: FilterPillsProps) {
 						onClick={() => onChange(option)}
 						className={`rounded-full border px-4 py-1.5 text-xs font-medium transition-colors ${
 							isActive
-								? 'border-zinc-300 bg-zinc-200 text-zinc-900 shadow-sm dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-100'
-								: 'border-zinc-200 bg-white/20 text-zinc-600 hover:bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800'
+								? 'border-zinc-300 bg-zinc-100 text-zinc-900 shadow-sm dark:border-zinc-600 dark:bg-zinc-700/70 dark:text-zinc-100'
+								: 'border-zinc-200 bg-white/60 text-zinc-600 hover:border-zinc-300 hover:bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800'
 						}`}
 					>
 						{label}

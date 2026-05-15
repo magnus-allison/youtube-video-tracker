@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, FormEvent } from 'react';
+import { normalizeHandleInput } from '../lib/handles';
 
 interface SearchBarProps {
 	value: string;
@@ -44,8 +45,7 @@ export default function SearchBar({ value, onChange, onSearch, isLoading }: Sear
 					type='text'
 					value={query}
 					onChange={(e) => {
-						const rawValue = e.target.value;
-						const nextValue = rawValue && !rawValue.startsWith('@') ? `@${rawValue}` : rawValue;
+						const nextValue = normalizeHandleInput(e.target.value);
 
 						setQuery(nextValue);
 						onChange(nextValue);
@@ -53,16 +53,16 @@ export default function SearchBar({ value, onChange, onSearch, isLoading }: Sear
 					placeholder='Search YouTube handle (e.g. @mkbhd)'
 					className='
 						w-full
-						rounded-2xl
-						border border-zinc-200
+						rounded-xl
+						border border-zinc-300/90
 						bg-white
-						px-10 py-3.5 pr-32
+						px-10 py-3 pr-32
 						text-sm text-zinc-900
-						shadow-sm
+						shadow-xs
 						outline-none
 						transition
 						placeholder:text-zinc-400
-						focus:border-red-500
+						focus:border-red-400
 						focus:ring-4 focus:ring-red-500/10
 						dark:border-zinc-800
 						dark:bg-zinc-900
@@ -77,13 +77,13 @@ export default function SearchBar({ value, onChange, onSearch, isLoading }: Sear
 					className='
 						absolute right-2
 						flex items-center justify-center gap-2
-						rounded-xl
-						bg-linear-to-r from-red-500 to-red-600
+						rounded-lg
+						bg-linear-to-r from-red-500 to-red-500
 						px-5 py-2
 						text-sm font-semibold text-white
 						shadow-sm
 						transition-all
-						hover:from-red-600 hover:to-red-700
+						hover:brightness-95
 						active:scale-[0.98]
 						disabled:cursor-not-allowed
 						disabled:opacity-50

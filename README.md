@@ -12,6 +12,9 @@ Search any channel by handle, browse their uploads, and mark videos as watched. 
 - Browse a channel's uploaded videos
 - Mark videos as watched/unwatched with one click
 - Recent searches saved as quick-access pills
+- Build a combined feed from multiple saved channels
+- Manage feed channels (add, edit, remove)
+- Highlight videos that are new since your last feed refresh
 - All data stored in localStorage (compressed, no account needed)
 
 ## Getting Started

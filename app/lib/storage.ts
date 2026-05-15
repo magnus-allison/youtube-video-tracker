@@ -35,6 +35,9 @@ export function setStorageItem(key: string, data: unknown): void {
 
 const RECENT_KEY = 'yt-tracker-recent';
 const MAX_RECENT = 5;
+const FEED_CHANNELS_KEY = 'yt-tracker-feed-channels';
+const FEED_KNOWN_VIDEOS_KEY = 'yt-tracker-feed-known-videos';
+const WATCHED_KEY = 'yt-tracker-watched';
 
 export function getRecentSearches(): string[] {
 	return getStorageItem<string[]>(RECENT_KEY, []);
@@ -46,4 +49,30 @@ export function addRecentSearch(handle: string): string[] {
 	const updated = [handle, ...filtered].slice(0, MAX_RECENT);
 	setStorageItem(RECENT_KEY, updated);
 	return updated;
+}
+
+export function getFeedChannels(): string[] {
+	return getStorageItem<string[]>(FEED_CHANNELS_KEY, []);
+}
+
+export function setFeedChannels(handles: string[]): void {
+	setStorageItem(FEED_CHANNELS_KEY, handles);
+}
+
+export type KnownFeedVideos = Record<string, string[]>;
+
+export function getKnownFeedVideos(): KnownFeedVideos {
+	return getStorageItem<KnownFeedVideos>(FEED_KNOWN_VIDEOS_KEY, {});
+}
+
+export function setKnownFeedVideos(knownVideos: KnownFeedVideos): void {
+	setStorageItem(FEED_KNOWN_VIDEOS_KEY, knownVideos);
+}
+
+export function getWatchedVideoIds(): string[] {
+	return getStorageItem<string[]>(WATCHED_KEY, []);
+}
+
+export function setWatchedVideoIds(ids: string[]): void {
+	setStorageItem(WATCHED_KEY, ids);
 }
