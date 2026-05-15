@@ -85,7 +85,10 @@ export function extractVideos(contents: unknown[]): { videos: ParsedVideo[]; con
 					const videoId = getString(videoRenderer.videoId);
 					if (videoId) {
 						const title = isRecord(videoRenderer.title)
-							? getString(asArray(videoRenderer.title.runs)[0] && (asArray(videoRenderer.title.runs)[0] as { text?: unknown }).text)
+							? getString(
+									asArray(videoRenderer.title.runs)[0] &&
+										(asArray(videoRenderer.title.runs)[0] as { text?: unknown }).text
+								)
 							: '';
 
 						let description = '';

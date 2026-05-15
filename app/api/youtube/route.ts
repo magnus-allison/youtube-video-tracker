@@ -22,7 +22,10 @@ const CACHE_TTL_MS = 2 * 60 * 1000;
 
 const channelCache = new Map<
 	string,
-	{ expiresAt: number; payload: { channelTitle: string; videos: ParsedVideo[]; continuation: string | null } }
+	{
+		expiresAt: number;
+		payload: { channelTitle: string; videos: ParsedVideo[]; continuation: string | null };
+	}
 >();
 
 async function fetchWithTimeout(input: string, init?: RequestInit): Promise<Response> {
@@ -93,10 +96,7 @@ export async function GET(request: NextRequest) {
 		if (continuationToken) {
 			const innertubeConfig = extractInnertubeConfig(html);
 			if (!innertubeConfig) {
-				return NextResponse.json(
-					{ error: 'Could not parse YouTube client config' },
-					{ status: 500 }
-				);
+				return NextResponse.json({ error: 'Could not parse YouTube client config' }, { status: 500 });
 			}
 
 			const body = JSON.stringify({

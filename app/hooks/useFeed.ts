@@ -14,7 +14,9 @@ import { dedupeNormalizedHandles, normalizeHandleForStorage } from '../lib/handl
 import { publishedAtSortWeight } from '../lib/video-time';
 
 function sortFeedVideos(videos: FeedVideo[]): FeedVideo[] {
-	return [...videos].sort((a, b) => publishedAtSortWeight(a.publishedAt) - publishedAtSortWeight(b.publishedAt));
+	return [...videos].sort(
+		(a, b) => publishedAtSortWeight(a.publishedAt) - publishedAtSortWeight(b.publishedAt)
+	);
 }
 
 export function useFeed() {
@@ -68,7 +70,9 @@ export function useFeed() {
 			}
 
 			setFeedVideos((current) =>
-				current.map((video) => (video.channelHandle === prev ? { ...video, channelHandle: next } : video))
+				current.map((video) =>
+					video.channelHandle === prev ? { ...video, channelHandle: next } : video
+				)
 			);
 
 			return true;

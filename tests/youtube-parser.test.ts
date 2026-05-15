@@ -75,7 +75,9 @@ describe('youtube parser helpers', () => {
 			onResponseReceivedActions: [
 				{
 					appendContinuationItemsAction: {
-						continuationItems: [{ richItemRenderer: { content: { videoRenderer: { videoId: 'x' } } } }]
+						continuationItems: [
+							{ richItemRenderer: { content: { videoRenderer: { videoId: 'x' } } } }
+						]
 					}
 				}
 			]
