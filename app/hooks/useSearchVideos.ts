@@ -106,9 +106,10 @@ export function useSearchVideos() {
 				`/api/youtube?handle=${encodeURIComponent(currentHandle.current)}&continuation=${encodeURIComponent(continuation)}`
 			);
 			const data = (await res.json()) as SearchResponse;
+			const nextVideos = data.videos;
 
-			if (res.ok && Array.isArray(data.videos)) {
-				setVideos((prev) => [...prev, ...data.videos]);
+			if (res.ok && Array.isArray(nextVideos)) {
+				setVideos((prev) => [...prev, ...nextVideos]);
 				setContinuation(data.continuation ?? null);
 			}
 		} catch {
